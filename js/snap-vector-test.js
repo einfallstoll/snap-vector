@@ -71,8 +71,8 @@ $(function() {
     /* DRAW CURVES */
     var curves = [
         {
-            xS: 5,
-            yS: 5,
+            xS: 10,
+            yS: 10,
             xP: 10,
             yP: 10
         }
@@ -220,8 +220,8 @@ $(function() {
         }
                 
         curves.splice(shortestDistanceIndex, 0, {
-            xS: 5,
-            yS: 5,
+            xS: x,
+            yS: y,
             xP: x,
             yP: y
         })
@@ -240,6 +240,12 @@ $(function() {
         var deltaX = x2 - x1
         , deltaY = y2 - y1
         return [x2 + deltaX, y2 + deltaY]
+    }
+    
+    function getMiddleOfPoints(x1, y1, x2, y2) {
+        var deltaX = x2 - x1
+        , deltaY = y2 - y1
+        return [x1 + deltaX / 2, y1 + deltaY / 2]
     }
     
     function nearestDistanceToBezier(x, y, p) {
