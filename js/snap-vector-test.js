@@ -1,5 +1,6 @@
 $(function() {
     var config = {
+        mode: 'add',
         area: {
             margin: 20
         },
@@ -80,6 +81,21 @@ $(function() {
     
     drawPath()
     
+    sVector.click(function(event, x, y) {
+        console.log(x, y)
+        
+        x -= jVector.offset().left
+        y -= jVector.offset().top
+        
+        console.log(x, y)
+        
+        switch (config.mode) {
+            case 'add':
+                addPoint(x, y)
+                break;
+        }
+    })
+    
     function drawPath() {
         if (path) {
             path.remove()
@@ -102,7 +118,8 @@ $(function() {
         path = sVector.path(pathDefinition)
         path.attr({
             stroke: config.path.lineColor,
-            strokeWidth: config.path.lineWidth
+            strokeWidth: config.path.lineWidth,
+            fill: "none"
         })
         
         // Calculate start point
@@ -126,6 +143,23 @@ $(function() {
             stroke: config.path.lineColor,
             strokeWidth: config.path.cross.lineWidth
         })
+        
+        var points = sVector.g()
+        
+        for (var i = 0; i < curves.length - 1; i++) {
+            var x = config.area.margin + curves[i].xP * gridWidth
+            , y = config.area.margin + curves[i].yP * gridHeight
+            
+            var circle = sVector.circle(x, y, 5)
+            
+            points.add(circle)
+        }
+        
+        points.attr({
+            stroke: '#000',
+            strokeWidth: 4,
+            fill: "none"
+        })
     }
     
     function drawCross(x, y, width, height) {
@@ -137,5 +171,96 @@ $(function() {
         cross.add(l1, l2)
         
         return cross
+    }
+    
+    function addPoint(x, y) {
+        
+        x -= config.area.margin
+        x /= gridWidth
+        
+        y -= config.area.margin
+        y /= gridHeight
+        
+        console.log(x, y)
+        
+        // Out of bounds
+        if (x < 0 || x > config.grid.count || y < 0 || y > config.grid.count) return
+        
+        var distances = []
+        
+        var last = {
+            xS: 0,
+            yS: 0,
+            xP: 0,
+            yP: 0
+        }
+        
+        curves.forEach(function(curve) {
+            var points = [
+                [last.xP, last.yP],
+                getMirroredPoint(last.xS, last.yS, last.xP, last.yP),
+                [curve.xS, curve.yS],
+                [curve.xP, curve.yP]
+            ]
+            
+            distances.push(nearestDistanceToBezier(x, y, points))
+            
+            last = curve
+        })
+        
+        // To start assume the first
+        var shortestDistanceIndex = 0
+        , shortestDistance = distances[0]
+        
+        for (var i = 0; i < distances.length; i++) {
+            if (distances[i] < shortestDistance) {
+                shortestDistance = distances[i]
+                shortestDistanceIndex = i
+            }
+        }
+                
+        curves.splice(shortestDistanceIndex, 0, {
+            xS: 5,
+            yS: 5,
+            xP: x,
+            yP: y
+        })
+        
+        drawPath()
+    }
+    
+    function calcDistance(x1, y1, x2, y2) {
+        var deltaX = x1 - x2
+        , deltaY = y1 - y2
+        
+        return Math.sqrt(deltaX * deltaX + deltaY * deltaY)
+    }
+    
+    function getMirroredPoint(x1, y1, x2, y2) {
+        var deltaX = x2 - x1
+        , deltaY = y2 - y1
+        return [x2 + deltaX, y2 + deltaY]
+    }
+    
+    function nearestDistanceToBezier(x, y, p) {
+        var shortestDistance = calcDistance(x, y, p[0][0], p[0][1])
+        for (var t = 0; t < 1; t += 0.1) {
+            var point = deCasteljau(p, t)
+            var distance = calcDistance(x, y, point[0], point[1])
+            
+            if (distance < shortestDistance) {
+                shortestDistance = distance
+            }
+        }
+        return shortestDistance
+    }
+    
+    // Source: https://gist.github.com/atomizer/1049745
+    function deCasteljau(p, t) {
+        for (var a = p; a.length > 1; a = b)
+            for (var i = 0, b = [], j; i < a.length - 1; i++)
+                for (b[i] = [], j = 0; j < a[i].length; j++)
+                    b[i][j] = a[i][j] * (1 - t) + a[i + 1][j] * t;
+        return a[0];
     }
 })
