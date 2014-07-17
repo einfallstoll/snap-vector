@@ -49,8 +49,6 @@ $(function() {
         , xH2 = config.area.margin + width + config.grid.lineWidth / 2
         , yH2 = config.area.margin + i * gridHeight
         
-        //console.log(xH1, yH1, xH2, yH2)
-        
         var horizontalLine = sVector.line(xH1, yH1, xH2, yH2)
         grid.add(horizontalLine)
         
@@ -59,8 +57,6 @@ $(function() {
         , yV1 = config.area.margin - config.grid.lineWidth / 2
         , xV2 = config.area.margin + i * gridWidth
         , yV2 = config.area.margin + height + config.grid.lineWidth / 2
-        
-        //console.log(xV1, yV1, xV2, yV2)
         
         var verticalLine = sVector.line(xV1, yV1, xV2, yV2)
         grid.add(verticalLine)
@@ -82,12 +78,8 @@ $(function() {
     drawPath()
     
     sVector.click(function(event, x, y) {
-        console.log(x, y)
-        
         x -= jVector.offset().left
         y -= jVector.offset().top
-        
-        console.log(x, y)
         
         switch (config.mode) {
             case 'add':
@@ -180,8 +172,6 @@ $(function() {
         
         y -= config.area.margin
         y /= gridHeight
-        
-        console.log(x, y)
         
         // Out of bounds
         if (x < 0 || x > config.grid.count || y < 0 || y > config.grid.count) return
