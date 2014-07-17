@@ -8,9 +8,11 @@
 <script src="lib/snap.svg/dist/snap.svg-min.js"></script>
 <script src="js/snap-vector-test.js"></script>
 
-<button>Add</button>
-<button>Delete</button>
-<button>Move</button>
-<p>Current Mode: <span>Add</span></p>
+<button data-mode="add">Add</button>
+<button data-mode="delete">Delete</button>
+<button data-mode="move">Move</button>
+<button data-mode="curve">Curve</button>
+
+<p>Current Mode: <span id="current-mode">Add</span></p>
 
 <svg id="vector"></svg>
