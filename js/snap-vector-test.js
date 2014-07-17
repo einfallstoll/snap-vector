@@ -42,6 +42,10 @@ $(function() {
                     lineWidth: 4,
                     lineColor: '#555',
                     size: 3
+                },
+                line: {
+                    lineWidth: 1,
+                    lineColor: '#555'
                 }
             }
         }
@@ -175,10 +179,8 @@ $(function() {
             strokeWidth: config.path.cross.lineWidth
         })
         
-        // Draw normal points if the mode is not curve
-        if (config.mode == 'add' || config.mode == 'delete' || config.mode == 'move') {
-            var points = sVector.g()
-
+        var points = sVector.g()
+        if (config.mode != 'curve') {
             for (var i = 0; i < curves.length - 1; i++) {
                 var x = config.area.margin + curves[i].xP * gridWidth
                 , y = config.area.margin + curves[i].yP * gridHeight
@@ -203,94 +205,33 @@ $(function() {
                 var point = sVector.g(outerCircle, innerCircle)
                 
                 point.data('index', i)
-                
-                // If the mode is delete or move, the points must be visually shown if the user hovers them
-                if (config.mode == 'delete' || config.mode == 'move') {
-                    var hoverCircle
-                    point.mouseover(function() {
-                        if (config.moving) return
-                        
-                        var bbox = this.getBBox()
-                        
-                        var x = bbox.cx
-                        , y = bbox.cy
-                        , r = bbox.r0
-                        
-                        var circle = sVector.circle(x, y, r)
-                        
-                        sVector.attr({
-                            stroke: config.path.point.hover.lineColor,
-                            strokeWidth: config.path.point.hover.lineWidth,
-                            fill: "none"
-                        })
-                        
-                        hoverCircle = circle
-                    }).mouseout(function() {
-                        hoverCircle.remove()
-                    })
-                    
-                    // If the mode is move, the point shall move
-                    if (config.mode == 'move') {
-                        point.drag(function(dx, dy, x, y) { // onmove                                                        
-                            x -= jVector.offset().left
-                            x -= config.area.margin
-                            x /= gridWidth
-
-                            y -= jVector.offset().top
-                            y -= config.area.margin
-                            y /= gridHeight
-                            
-                            dx /= gridWidth
-
-                            dy /= gridHeight
-                            
-                            curves[this.data('index')].xP = x
-                            curves[this.data('index')].yP = y
-                            
-                            // Don't let the bazier-control-point (or the "sPoint") on its place, or the result may be unexpected
-                            curves[this.data('index')].xS = curves[this.data('index')].xSo + dx
-                            curves[this.data('index')].yS = curves[this.data('index')].ySo + dy
-                            
-                            drawPath()
-                        }, function() { // onstart
-                            hoverCircle.remove()
-                            
-                            // Save the original position, this is needed for a relative movement
-                            curves[this.data('index')].xSo = curves[this.data('index')].xS
-                            curves[this.data('index')].ySo = curves[this.data('index')].yS
-                            
-                            config.moving = true
-                        }, function() { // onend
-                            config.moving = false
-                        })
-                    } else if (config.mode == 'delete') {
-                        // Delete the the point on click
-                        point.click(function() {
-                            curves.splice(this.data('index'), 1)
-                            hoverCircle.remove()
-                            drawPath()
-                        })
-                    }
-                }
+                curves[i].point = point
                 
                 points.add(point)
             }
-            
-            drawnPoints = points
-        } else { // Draw the bezier-control-points in curve-mode
-            var points = sVector.g()
-
+        } else {
             for (var i = 0; i < curves.length - 1; i++) {
                 var x = config.area.margin + curves[i].xS * gridWidth
                 , y = config.area.margin + curves[i].yS * gridHeight
+                , xP = config.area.margin + curves[i].xP * gridWidth
+                , yP = config.area.margin + curves[i].yP * gridHeight
 
+                var line = sVector.line(x, y, xP, yP)
+                
+                line.attr({
+                    stroke: config.path.spoint.line.lineColor,
+                    strokeWidth: config.path.spoint.line.lineWidth
+                })
+                
+                points.add(line)
+                
                 var outerCircle = sVector.circle(x, y, 5)
                 , innerCircle = sVector.circle(x, y, 3)
 
                 outerCircle.attr({
                     stroke: config.path.spoint.outer.lineColor,
                     strokeWidth: config.path.spoint.outer.lineWidth,
-                    fill: "none"
+                    fill: config.path.spoint.outer.lineColor
                 })
 
                 innerCircle.attr({
@@ -298,22 +239,138 @@ $(function() {
                     strokeWidth: config.path.spoint.inner.lineWidth,
                     fill: "none"
                 })
+                
+                var point = sVector.g(outerCircle, innerCircle)
 
-                points.add(sVector.g(outerCircle, innerCircle))
+                point.data('index', i)
+                curves[i].point = point
+                
+                points.add(point)
             }
-            
-            drawnPoints = points
+        }
+        
+        drawnPoints = points
+        
+        if (config.mode != 'add') {
+            for (var i = 0; i < curves.length - 1; i++) {
+                var point = curves[i].point
+                
+                point.mouseover(function() {
+                    if (config.moving) return
+
+                    var bbox = this.getBBox()
+
+                    var x = bbox.cx
+                    , y = bbox.cy
+                    , r = bbox.r0
+
+                    var circle = sVector.circle(x, y, r)
+
+                    sVector.attr({
+                        stroke: config.path.point.hover.lineColor,
+                        strokeWidth: config.path.point.hover.lineWidth,
+                        fill: "none"
+                    })
+
+                    curves[this.data('index')].hoverCircle = circle
+                }).mouseout(function() {
+                    curves[this.data('index')].hoverCircle.remove()
+                })
+            }
+        }
+        
+        if (config.mode == 'move') {
+            // If the mode is move, the point shall move
+            for (var i = 0; i < curves.length - 1; i++) {
+                var point = curves[i].point
+                
+                point.drag(function(dx, dy, x, y) { // onmove                                                        
+                    x -= jVector.offset().left
+                    x -= config.area.margin
+                    x /= gridWidth
+
+                    y -= jVector.offset().top
+                    y -= config.area.margin
+                    y /= gridHeight
+
+                    dx /= gridWidth
+
+                    dy /= gridHeight
+
+                    curves[this.data('index')].xP = x
+                    curves[this.data('index')].yP = y
+
+                    // Don't let the bazier-control-point (or the "sPoint") on its place, or the result may be unexpected
+                    curves[this.data('index')].xS = curves[this.data('index')].xSo + dx
+                    curves[this.data('index')].yS = curves[this.data('index')].ySo + dy
+
+                    drawPath()
+                }, function() { // onstart
+                    if (curves[this.data('index')].hoverCircle) {
+                        curves[this.data('index')].hoverCircle.remove()
+                    }
+
+                    // Save the original position, this is needed for a relative movement
+                    curves[this.data('index')].xSo = curves[this.data('index')].xS
+                    curves[this.data('index')].ySo = curves[this.data('index')].yS
+
+                    config.moving = true
+                }, function() { // onend
+                    config.moving = false
+                })
+            }
+        } else if (config.mode == 'delete') {
+            // Delete the the point on click
+            for (var i = 0; i < curves.length - 1; i++) {
+                var point = curves[i].point
+                
+                point.click(function() {
+                    if (curves[this.data('index')].hoverCircle) {
+                        curves[this.data('index')].hoverCircle.remove()
+                    }
+                    
+                    curves.splice(this.data('index'), 1)
+                    drawPath()
+                })
+            }
+        } else if (config.mode == 'curve') {
+            // If the mode is curve, the sPoint shall move
+            for (var i = 0; i < curves.length - 1; i++) {
+                var point = curves[i].point
+                , hoverCircle
+                
+                point.drag(function(dx, dy, x, y) { // onmove                                                        
+                    x -= jVector.offset().left
+                    x -= config.area.margin
+                    x /= gridWidth
+
+                    y -= jVector.offset().top
+                    y -= config.area.margin
+                    y /= gridHeight
+
+                    curves[this.data('index')].xS = x
+                    curves[this.data('index')].yS = y
+
+                    drawPath()
+                }, function() { // onstart
+                    if (curves[this.data('index')].hoverCircle) {
+                        curves[this.data('index')].hoverCircle.remove()
+                    }
+                    
+                    config.moving = true
+                }, function() { // onend
+                    config.moving = false
+                })
+            }
         }
     }
     
     // This will draw a cross, needed for start and ending point
     function drawCross(x, y, width, height) {
-        var cross = sVector.g()
-        
         var l1 = sVector.line(x - width / 2, y - height / 2, x + width / 2, y + height / 2)
         , l2 = sVector.line(x - width / 2, y + height / 2, x + width / 2, y - height / 2)
         
-        return cross
+        return sVector.g(l1, l2)
     }
     
     // Adds a point to the curve
