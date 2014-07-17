@@ -15,6 +15,34 @@ $(function() {
             cross: {
                 lineWidth: 4,
                 size: 15
+            },
+            point: {
+                outer: {
+                    lineWidth: 4,
+                    lineColor: '#000',
+                    size: 5
+                },
+                inner: {
+                    lineWidth: 4,
+                    lineColor: '#DDD',
+                    size: 3
+                },
+                hover: {
+                    lineWidth: 2,
+                    lineColor: '#000'
+                }
+            },
+            spoint: {
+                outer: {
+                    lineWidth: 4,
+                    lineColor: '#000',
+                    size: 5
+                },
+                inner: {
+                    lineWidth: 4,
+                    lineColor: '#555',
+                    size: 3
+                }
             }
         }
     }
@@ -74,10 +102,17 @@ $(function() {
         }
     ]
     , path = null
+    , drawnPoints = null
     
     drawPath()
     
-    sVector.click(function(event, x, y) {
+    $('button[data-mode]').click(function() {
+        config.mode = $(this).data('mode')
+        $('span#current-mode').text($(this).text())
+        drawPath()
+    })
+    
+    sVector.click(function(event, x, y) {        
         x -= jVector.offset().left
         y -= jVector.offset().top
         
@@ -91,6 +126,10 @@ $(function() {
     function drawPath() {
         if (path) {
             path.remove()
+        }
+        
+        if (drawnPoints) {
+            drawnPoints.remove()
         }
         
         // Initial Point
@@ -136,22 +175,135 @@ $(function() {
             strokeWidth: config.path.cross.lineWidth
         })
         
-        var points = sVector.g()
-        
-        for (var i = 0; i < curves.length - 1; i++) {
-            var x = config.area.margin + curves[i].xP * gridWidth
-            , y = config.area.margin + curves[i].yP * gridHeight
+        // Draw normal points if the mode is not curve
+        if (config.mode == 'add' || config.mode == 'delete' || config.mode == 'move') {
+            var points = sVector.g()
+
+            for (var i = 0; i < curves.length - 1; i++) {
+                var x = config.area.margin + curves[i].xP * gridWidth
+                , y = config.area.margin + curves[i].yP * gridHeight
+
+                var outerCircle = sVector.circle(x, y, 5)
+                , innerCircle = sVector.circle(x, y, 3)
+
+                // Draw a black outer circle
+                outerCircle.attr({
+                    stroke: config.path.point.outer.lineColor,
+                    strokeWidth: config.path.point.outer.lineWidth,
+                    fill: config.path.point.outer.lineColor
+                })
+
+                // Draw a grey inner circle
+                innerCircle.attr({
+                    stroke: config.path.point.inner.lineColor,
+                    strokeWidth: config.path.point.inner.lineWidth,
+                    fill: "none"
+                })
+
+                var point = sVector.g(outerCircle, innerCircle)
+                
+                point.data('index', i)
+                
+                // If the mode is delete or move, the points must be visually shown if the user hovers them
+                if (config.mode == 'delete' || config.mode == 'move') {
+                    var hoverCircle
+                    point.mouseover(function() {
+                        if (config.moving) return
+                        
+                        var bbox = this.getBBox()
+                        
+                        var x = bbox.cx
+                        , y = bbox.cy
+                        , r = bbox.r0
+                        
+                        var circle = sVector.circle(x, y, r)
+                        
+                        sVector.attr({
+                            stroke: config.path.point.hover.lineColor,
+                            strokeWidth: config.path.point.hover.lineWidth,
+                            fill: "none"
+                        })
+                        
+                        hoverCircle = circle
+                    }).mouseout(function() {
+                        hoverCircle.remove()
+                    })
+                    
+                    // If the mode is move, the point shall move
+                    if (config.mode == 'move') {
+                        point.drag(function(dx, dy, x, y) { // onmove                                                        
+                            x -= jVector.offset().left
+                            x -= config.area.margin
+                            x /= gridWidth
+
+                            y -= jVector.offset().top
+                            y -= config.area.margin
+                            y /= gridHeight
+                            
+                            dx /= gridWidth
+
+                            dy /= gridHeight
+                            
+                            curves[this.data('index')].xP = x
+                            curves[this.data('index')].yP = y
+                            
+                            // Don't let the bazier-control-point (or the "sPoint") on its place, or the result may be unexpected
+                            curves[this.data('index')].xS = curves[this.data('index')].xSo + dx
+                            curves[this.data('index')].yS = curves[this.data('index')].ySo + dy
+                            
+                            drawPath()
+                        }, function() { // onstart
+                            hoverCircle.remove()
+                            
+                            // Save the original position, this is needed for a relative movement
+                            curves[this.data('index')].xSo = curves[this.data('index')].xS
+                            curves[this.data('index')].ySo = curves[this.data('index')].yS
+                            
+                            config.moving = true
+                        }, function() { // onend
+                            config.moving = false
+                        })
+                    } else if (config.mode == 'delete') {
+                        // Delete the the point on click
+                        point.click(function() {
+                            curves.splice(this.data('index'), 1)
+                            hoverCircle.remove()
+                            drawPath()
+                        })
+                    }
+                }
+                
+                points.add(point)
+            }
             
-            var circle = sVector.circle(x, y, 5)
+            drawnPoints = points
+        } else { // Draw the bezier-control-points in curve-mode
+            var points = sVector.g()
+
+            for (var i = 0; i < curves.length - 1; i++) {
+                var x = config.area.margin + curves[i].xS * gridWidth
+                , y = config.area.margin + curves[i].yS * gridHeight
+
+                var outerCircle = sVector.circle(x, y, 5)
+                , innerCircle = sVector.circle(x, y, 3)
+
+                outerCircle.attr({
+                    stroke: config.path.spoint.outer.lineColor,
+                    strokeWidth: config.path.spoint.outer.lineWidth,
+                    fill: "none"
+                })
+
+                innerCircle.attr({
+                    stroke: config.path.spoint.inner.lineColor,
+                    strokeWidth: config.path.spoint.inner.lineWidth,
+                    fill: "none"
+                })
+
+                points.add(sVector.g(outerCircle, innerCircle))
+            }
             
-            points.add(circle)
+            drawnPoints = points
         }
-        
-        points.attr({
-            stroke: '#000',
-            strokeWidth: 4,
-            fill: "none"
-        })
     }
     
     // This will draw a cross, needed for start and ending point
@@ -160,8 +312,6 @@ $(function() {
         
         var l1 = sVector.line(x - width / 2, y - height / 2, x + width / 2, y + height / 2)
         , l2 = sVector.line(x - width / 2, y + height / 2, x + width / 2, y - height / 2)
-        
-        cross.add(l1, l2)
         
         return cross
     }
