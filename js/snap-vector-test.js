@@ -154,6 +154,7 @@ $(function() {
         })
     }
     
+    // This will draw a cross, needed for start and ending point
     function drawCross(x, y, width, height) {
         var cross = sVector.g()
         
@@ -165,8 +166,10 @@ $(function() {
         return cross
     }
     
+    // Adds a point to the curve
     function addPoint(x, y) {
         
+        // Calculate the "in-grid-position"
         x -= config.area.margin
         x /= gridWidth
         
@@ -185,6 +188,7 @@ $(function() {
             yP: 0
         }
         
+        // Calculate and save the nearest distance to all bezier curves
         curves.forEach(function(curve) {
             var points = [
                 [last.xP, last.yP],
@@ -202,13 +206,15 @@ $(function() {
         var shortestDistanceIndex = 0
         , shortestDistance = distances[0]
         
+        // Find the shortest distance
         for (var i = 0; i < distances.length; i++) {
             if (distances[i] < shortestDistance) {
                 shortestDistance = distances[i]
                 shortestDistanceIndex = i
             }
         }
-                
+        
+        // We've got a winner (and a place, where the new point will be added)
         curves.splice(shortestDistanceIndex, 0, {
             xS: x,
             yS: y,
@@ -219,6 +225,7 @@ $(function() {
         drawPath()
     }
     
+    // This will calculate the distance between to given points
     function calcDistance(x1, y1, x2, y2) {
         var deltaX = x1 - x2
         , deltaY = y1 - y2
@@ -226,21 +233,26 @@ $(function() {
         return Math.sqrt(deltaX * deltaX + deltaY * deltaY)
     }
     
+    // This will mirror the point through another
+    // This is needed because of the W3C-specification of "smooth" bezier-control-points
     function getMirroredPoint(x1, y1, x2, y2) {
         var deltaX = x2 - x1
         , deltaY = y2 - y1
         return [x2 + deltaX, y2 + deltaY]
     }
     
+    // Calculate the middle between to given points
     function getMiddleOfPoints(x1, y1, x2, y2) {
         var deltaX = x2 - x1
         , deltaY = y2 - y1
         return [x1 + deltaX / 2, y1 + deltaY / 2]
     }
     
+    // Calculate the nearest distance to a bezier curve
+    // This has only a certain percision
     function nearestDistanceToBezier(x, y, p) {
         var shortestDistance = calcDistance(x, y, p[0][0], p[0][1])
-        for (var t = 0; t < 1; t += 0.1) {
+        for (var t = 0; t <= 1; t += 0.1) { // This is the precision, 0.1 will calculate 11 points on the bezier curve
             var point = deCasteljau(p, t)
             var distance = calcDistance(x, y, point[0], point[1])
             
@@ -251,6 +263,8 @@ $(function() {
         return shortestDistance
     }
     
+    // This is the algorithm to calculate the bezier curve
+    // It takes 4 points to define the bezier curve and a parameter "t" (0 <= t <= 1)
     // Source: https://gist.github.com/atomizer/1049745
     function deCasteljau(p, t) {
         for (var a = p; a.length > 1; a = b)
