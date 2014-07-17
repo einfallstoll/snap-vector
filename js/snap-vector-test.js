@@ -71,10 +71,10 @@ $(function() {
     /* DRAW CURVES */
     var curves = [
         {
-            xS: 10,
-            yS: 10,
-            xP: 10,
-            yP: 10
+            xS: config.grid.count,
+            yS: config.grid.count,
+            xP: config.grid.count,
+            yP: config.grid.count
         }
     ]
     , path = null
